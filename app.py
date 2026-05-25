@@ -156,6 +156,8 @@ with tab3:
         "Model",
         "CN Unit",
         "Description of Breakdown",
+        "Awal",
+        "Akhir",
         "Category",
         "Severity",
         "Shift",
