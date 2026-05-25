@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+import plotly.express as px
 import streamlit as st
 
 from scripts.analytics import compute_kpis
@@ -46,6 +47,7 @@ unit_opt = st.sidebar.multiselect("Unit", sorted(df["CN Unit"].dropna().astype(s
 shift_opt = st.sidebar.multiselect("Shift", sorted(df["Shift"].dropna().astype(str).unique()))
 loc_opt = st.sidebar.multiselect("Location", sorted(df["Location"].dropna().astype(str).unique()))
 cat_opt = st.sidebar.multiselect("Category", sorted(df["Category"].dropna().astype(str).unique()))
+subcat_opt = st.sidebar.multiselect("Subcategory", sorted(df["Subcategory"].dropna().astype(str).unique()))
 sev_opt = st.sidebar.multiselect("Severity", sorted(df["Severity"].dropna().astype(str).unique()))
 valid_opt = st.sidebar.multiselect(
     "Duration Check", sorted(df["Duration_Check"].dropna().astype(str).unique())
@@ -73,6 +75,8 @@ if loc_opt:
     filtered = filtered[filtered["Location"].astype(str).isin(loc_opt)]
 if cat_opt:
     filtered = filtered[filtered["Category"].astype(str).isin(cat_opt)]
+if subcat_opt:
+    filtered = filtered[filtered["Subcategory"].astype(str).isin(subcat_opt)]
 if sev_opt:
     filtered = filtered[filtered["Severity"].astype(str).isin(sev_opt)]
 if valid_opt:
@@ -139,6 +143,38 @@ tab1, tab2, tab3 = st.tabs(["Overview", "Pattern", "Detail"])
 
 with tab1:
     st.plotly_chart(chart_pareto_category(filtered), use_container_width=True)
+    subcat_all = (
+        filtered.groupby("Subcategory", dropna=False)["Duration_Real"]
+        .sum()
+        .sort_values(ascending=False)
+        .reset_index()
+    )
+    fig_subcat_all = px.bar(
+        subcat_all,
+        x="Subcategory",
+        y="Duration_Real",
+        title="Pareto Breakdown by Subcategory",
+    )
+    st.plotly_chart(fig_subcat_all, use_container_width=True)
+
+    st.markdown("### Category to Subcategory Drilldown")
+    available_categories = sorted(filtered["Category"].dropna().astype(str).unique())
+    drill_category = st.selectbox("Select Category", options=available_categories)
+    drill_df = filtered[filtered["Category"].astype(str) == drill_category]
+    drill_subcat = (
+        drill_df.groupby("Subcategory", dropna=False)["Duration_Real"]
+        .sum()
+        .sort_values(ascending=False)
+        .reset_index()
+    )
+    fig_drill = px.bar(
+        drill_subcat,
+        x="Subcategory",
+        y="Duration_Real",
+        title=f"Subcategory Detail - {drill_category}",
+    )
+    st.plotly_chart(fig_drill, use_container_width=True)
+
     st.plotly_chart(chart_daily_trend(filtered), use_container_width=True)
     a, b = st.columns(2)
     with a:
@@ -159,6 +195,7 @@ with tab3:
         "Awal",
         "Akhir",
         "Category",
+        "Subcategory",
         "Severity",
         "Shift",
         "Location",
