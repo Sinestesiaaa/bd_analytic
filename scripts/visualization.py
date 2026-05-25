@@ -64,6 +64,25 @@ def chart_timeline(df: pd.DataFrame):
         x_start="Start",
         x_end="End",
         y="CN Unit",
+        color="Category",
+        title="Breakdown Timeline by Category",
+    )
+
+
+def chart_timeline_subcategory(df: pd.DataFrame):
+    timeline = df.copy()
+    timeline["Start"] = pd.to_datetime(
+        timeline["Date"].astype("string") + " " + timeline["Awal"].astype("string"), errors="coerce"
+    )
+    timeline["End"] = timeline["Start"] + pd.to_timedelta(
+        pd.to_numeric(timeline["Duration_Real"], errors="coerce"), unit="h"
+    )
+    timeline = timeline.dropna(subset=["Start", "End"])
+    return px.timeline(
+        timeline,
+        x_start="Start",
+        x_end="End",
+        y="CN Unit",
         color="Subcategory",
         title="Breakdown Timeline by Subcategory",
     )

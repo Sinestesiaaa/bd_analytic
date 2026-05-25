@@ -15,6 +15,7 @@ from scripts.visualization import (
     chart_heatmap,
     chart_pareto_category,
     chart_timeline,
+    chart_timeline_subcategory,
     chart_top_units,
 )
 
@@ -191,36 +192,96 @@ with tab1:
 with tab2:
     st.plotly_chart(chart_heatmap(filtered), use_container_width=True)
     st.plotly_chart(chart_timeline(filtered), use_container_width=True)
+    st.plotly_chart(chart_timeline_subcategory(filtered), use_container_width=True)
 
 with tab3:
-    unit_agg = (
-        filtered.groupby("CN Unit", dropna=False)
-        .agg(
-            Breakdown_Count=("CN Unit", "count"),
-            Total_Downtime=("Duration_Real", "sum"),
-            Avg_Duration=("Duration_Real", "mean"),
-        )
-        .reset_index()
-        .sort_values(["Total_Downtime", "Breakdown_Count"], ascending=[False, False])
+    st.markdown("### Unit Detail Filters")
+    unit_list_detail = sorted(filtered["CN Unit"].dropna().astype(str).unique())
+    selected_units_detail = st.multiselect(
+        "Select Unit(s) for Detail",
+        options=unit_list_detail,
+        default=unit_list_detail,
     )
-    fig_all_units = px.bar(
-        unit_agg,
-        x="CN Unit",
-        y="Total_Downtime",
-        hover_data=["Breakdown_Count", "Avg_Duration"],
-        title="All Units - Total Downtime",
-    )
-    st.plotly_chart(fig_all_units, use_container_width=True)
-    st.dataframe(unit_agg, use_container_width=True, height=360)
+    if selected_units_detail:
+        unit_filtered = filtered[filtered["CN Unit"].astype(str).isin(selected_units_detail)].copy()
+    else:
+        unit_filtered = filtered.copy()
 
-    st.markdown("### Unit Problem Matrix (Category + Subcategory)")
-    unit_matrix = (
-        filtered.groupby(["CN Unit", "Category", "Subcategory"], dropna=False)
-        .agg(Breakdown_Count=("CN Unit", "count"), Total_Downtime=("Duration_Real", "sum"))
-        .reset_index()
-        .sort_values(["CN Unit", "Total_Downtime"], ascending=[True, False])
+    unit_cat_filter = st.multiselect(
+        "Filter Category (Unit Detail)",
+        options=sorted(unit_filtered["Category"].dropna().astype(str).unique()),
     )
-    st.dataframe(unit_matrix, use_container_width=True, height=420)
+    if unit_cat_filter:
+        unit_filtered = unit_filtered[unit_filtered["Category"].astype(str).isin(unit_cat_filter)]
+
+    unit_subcat_filter = st.multiselect(
+        "Filter Subcategory (Unit Detail)",
+        options=sorted(unit_filtered["Subcategory"].dropna().astype(str).unique()),
+    )
+    if unit_subcat_filter:
+        unit_filtered = unit_filtered[unit_filtered["Subcategory"].astype(str).isin(unit_subcat_filter)]
+
+    if unit_filtered.empty:
+        st.warning("No unit detail data for selected filters.")
+    else:
+        unit_agg = (
+            unit_filtered.groupby("CN Unit", dropna=False)
+            .agg(
+                Breakdown_Count=("CN Unit", "count"),
+                Total_Downtime=("Duration_Real", "sum"),
+                Avg_Duration=("Duration_Real", "mean"),
+            )
+            .reset_index()
+            .sort_values(["Total_Downtime", "Breakdown_Count"], ascending=[False, False])
+        )
+        fig_all_units = px.bar(
+            unit_agg,
+            x="CN Unit",
+            y="Total_Downtime",
+            hover_data=["Breakdown_Count", "Avg_Duration"],
+            title="All Units - Total Downtime",
+        )
+        st.plotly_chart(fig_all_units, use_container_width=True)
+        st.dataframe(unit_agg, use_container_width=True, height=360)
+
+        u1, u2 = st.columns(2)
+        with u1:
+            cat_by_unit = (
+                unit_filtered.groupby("Category", dropna=False)["Duration_Real"]
+                .sum()
+                .sort_values(ascending=False)
+                .reset_index()
+            )
+            fig_unit_cat = px.bar(
+                cat_by_unit,
+                x="Category",
+                y="Duration_Real",
+                title="Unit Detail - Category Downtime",
+            )
+            st.plotly_chart(fig_unit_cat, use_container_width=True)
+        with u2:
+            subcat_by_unit = (
+                unit_filtered.groupby("Subcategory", dropna=False)["Duration_Real"]
+                .sum()
+                .sort_values(ascending=False)
+                .reset_index()
+            )
+            fig_unit_subcat = px.bar(
+                subcat_by_unit,
+                x="Subcategory",
+                y="Duration_Real",
+                title="Unit Detail - Subcategory Downtime",
+            )
+            st.plotly_chart(fig_unit_subcat, use_container_width=True)
+
+        st.markdown("### Unit Problem Matrix (Category + Subcategory)")
+        unit_matrix = (
+            unit_filtered.groupby(["CN Unit", "Category", "Subcategory"], dropna=False)
+            .agg(Breakdown_Count=("CN Unit", "count"), Total_Downtime=("Duration_Real", "sum"))
+            .reset_index()
+            .sort_values(["CN Unit", "Total_Downtime"], ascending=[True, False])
+        )
+        st.dataframe(unit_matrix, use_container_width=True, height=420)
 
 with tab4:
     view_cols = [
