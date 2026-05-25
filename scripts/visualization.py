@@ -64,7 +64,6 @@ def chart_timeline(df: pd.DataFrame):
         x_start="Start",
         x_end="End",
         y="CN Unit",
-        color="Category",
-        title="Breakdown Timeline",
+        color="Subcategory",
+        title="Breakdown Timeline by Subcategory",
     )
-
